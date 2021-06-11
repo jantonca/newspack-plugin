@@ -85,6 +85,19 @@ class AMP_Enhancements {
 		if ( isset( $error, $error['node_attributes'], $error['node_attributes']['data-amp-plus-allowed'] ) ) {
 			return false;
 		}
+
+		// Other scripts, selectively allowed - if the attribute cannot be added.
+		if ( isset( $error, $error['type'] ) && 'js_error' === $error['type'] ) {
+			if (
+				// OneSignal inline script.
+				( isset( $error['text'] ) && stripos( $error['text'], 'window.OneSignal' ) ) ||
+				// OneSignal SDK.
+				( isset( $error['node_attributes'], $error['node_attributes']['src'] ) && stripos( $error['node_attributes']['src'], 'onesignal.com' ) )
+			) {
+				return false;
+			}
+		}
+
 		return $is_sanitized;
 	}
 }
