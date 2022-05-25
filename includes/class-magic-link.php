@@ -258,7 +258,7 @@ final class Magic_Link {
 		/**
 		 * Filters the magic link email.
 		 *
-		 * @param array $email Email arguments. {
+		 * @param array    $email          Email arguments. {
 		 *   Used to build wp_mail().
 		 *
 		 *   @type string $to      The intended recipient - New user email address.
@@ -266,10 +266,10 @@ final class Magic_Link {
 		 *   @type string $message The body of the email.
 		 *   @type string $headers The headers of the email.
 		 * }
-		 * @param \WP_User $user       User to send the magic link to.
-		 * @param string   $magic_link Magic link url.
+		 * @param \WP_User $user           User to send the magic link to.
+		 * @param string   $magic_link_url Magic link url.
 		 */
-		return \apply_filters( 'newspack_magic_link_email', $email, $user, $magic_link );
+		return \apply_filters( 'newspack_magic_link_email', $email, $user, $magic_link_url );
 	}
 
 	/**
