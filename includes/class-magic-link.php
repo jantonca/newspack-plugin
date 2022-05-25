@@ -212,7 +212,8 @@ final class Magic_Link {
 	/**
 	 * Get a magic link email arguments given a user.
 	 *
-	 * @param \WP_User $user User to generate the magic link for.
+	 * @param \WP_User $user        User to generate the magic link for.
+	 * @param string   $redirect_to Which page to redirect the reader after authenticating.
 	 *
 	 * @return array|\WP_Error $email Email arguments or error. {
 	 *   Used to build wp_mail().
@@ -223,12 +224,12 @@ final class Magic_Link {
 	 *   @type string $headers The headers of the email.
 	 * }
 	 */
-	public static function generate_email( $user ) {
+	public static function generate_email( $user, $redirect_to = '' ) {
 		if ( ! Reader_Activation::is_user_reader( $user ) ) {
 			return new \WP_Error( 'newspack_magic_link_invalid_user', __( 'User is not a reader.', 'newspack' ) );
 		}
 
-		$magic_link_url = self::generate_url( $user );
+		$magic_link_url = self::generate_url( $user, $redirect_to );
 
 		if ( \is_wp_error( $magic_link_url ) ) {
 			return $magic_link_url;
@@ -275,12 +276,13 @@ final class Magic_Link {
 	/**
 	 * Send magic link email to reader.
 	 *
-	 * @param \WP_User $user User to send the magic link to.
+	 * @param \WP_User $user        User to send the magic link to.
+	 * @param string   $redirect_to Which page to redirect the reader after authenticating.
 	 *
 	 * @return bool|\WP_Error Whether the email was sent or WP_Error if sending failed.
 	 */
-	public static function send_email( $user ) {
-		$email = self::generate_email( $user );
+	public static function send_email( $user, $redirect_to = '' ) {
+		$email = self::generate_email( $user, $redirect_to );
 
 		if ( \is_wp_error( $email ) ) {
 			return $email;
@@ -454,27 +456,42 @@ final class Magic_Link {
 		}
 
 		/**
-		 * Send a magic link to a reader, given their email address or user ID.
+		 * Sends a magic link to a reader.
 		 *
-		 * Usage: wp newspack magic-link send john@doe.com
+		 * ## OPTIONS
+		 *
+		 * <email_or_id>
+		 * : The email address or user ID of the reader.
+		 *
+		 * ## EXAMPLES
+		 *
+		 *     wp newspack magic-link send 12
+		 *     wp newspack magic-link send john@doe.com
+		 *
+		 * @when after_wp_load
 		 */
 		$send = function( $args, $assoc_args ) {
 			if ( ! isset( $args[0] ) ) {
 				\WP_CLI::error( 'Please provide a user email or ID.' );
 			}
 			$id_or_email = $args[0];
-			if ( absint( $id_or_email ) ) {
+
+			if ( \absint( $id_or_email ) ) {
 				$user = \get_user_by( 'id', $id_or_email );
 			} else {
 				$user = \get_user_by( 'email', $id_or_email );
 			}
-			if ( ! $user || is_wp_error( $user ) ) {
+
+			if ( ! $user || \is_wp_error( $user ) ) {
 				\WP_CLI::error( __( 'User not found.', 'newspack' ) );
 			}
+
 			$result = self::send_email( $user );
+
 			if ( \is_wp_error( $result ) ) {
 				\WP_CLI::error( $result->get_error_message() );
 			}
+
 			// translators: %s is the email address of the user.
 			\WP_CLI::success( sprintf( __( 'Email sent to %s.', 'newspack' ), $user->user_email ) );
 		};
