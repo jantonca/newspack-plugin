@@ -66,6 +66,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 * }
 	 */
 	public function assertToken( $token_data ) {
+		$this->assertFalse( is_wp_error( $second_validation ) );
 		$this->assertIsString( $token_data['token'] );
 		$this->assertIsString( $token_data['client'] );
 		$this->assertIsInt( $token_data['time'] );
@@ -84,7 +85,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 */
 	public function test_validate_token() {
 		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
-		$this->assertToken( Magic_Link::validate_token( self::$user_id, $token_data['token'], $token_data['client'] ) );
+		$this->assertToken( Magic_Link::validate_token( self::$user_id, $token_data['client'], $token_data['token'] ) );
 	}
 
 	/**
@@ -94,11 +95,11 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
 
 		// First use should be valid.
-		$first_validation = Magic_Link::validate_token( self::$user_id, $token_data['token'], $token_data['client'] );
+		$first_validation = Magic_Link::validate_token( self::$user_id, $token_data['client'], $token_data['token'] );
 		$this->assertToken( $first_validation );
 
 		// Second use should error with "invalid_token", since it was deleted by previous use.
-		$second_validation = Magic_Link::validate_token( self::$user_id, $token_data['token'], $token_data['client'] );
+		$second_validation = Magic_Link::validate_token( self::$user_id, $token_data['client'], $token_data['token'] );
 		$this->assertTrue( is_wp_error( $second_validation ) );
 		$this->assertEquals( 'invalid_token', $token_data->get_error_code() );
 	}
