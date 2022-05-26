@@ -624,9 +624,9 @@ final class Magic_Link {
 		if ( ! Reader_Activation::is_enabled() ) {
 			return $actions;
 		}
-		$url = self::get_admin_action_url( 'send', $user->ID );
 		if ( self::can_magic_link( $user->ID ) ) {
-			$actions['newspack-magic-link'] = '<a href="' . $url . '">' . __( 'Send magic link', 'newspack' ) . '</a>';
+			$url                                 = self::get_admin_action_url( 'send', $user->ID );
+			$actions['newspack-magic-link-send'] = '<a href="' . $url . '">' . esc_html__( 'Send magic link', 'newspack' ) . '</a>';
 		}
 		return $actions;
 	}
