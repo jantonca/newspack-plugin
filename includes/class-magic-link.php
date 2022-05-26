@@ -722,7 +722,7 @@ final class Magic_Link {
 	}
 
 	/**
-	 * Magic link management edit user.
+	 * Magic link management for the user profile editor page.
 	 * 
 	 * @param WP_User $user The current WP_User object.
 	 */

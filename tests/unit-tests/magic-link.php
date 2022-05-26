@@ -73,7 +73,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test token generation.
+	 * Test simple token generation.
 	 */
 	public function test_generate_token() {
 		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
@@ -81,7 +81,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test token validation.
+	 * Test simple token validation.
 	 */
 	public function test_validate_token() {
 		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
@@ -89,7 +89,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test single-use aspect of a token.
+	 * Test single-use quality of a token.
 	 */
 	public function test_single_use_token() {
 		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
@@ -105,12 +105,24 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test error when attempting to generate for admin user.
+	 * Test that generating a token for an admin returns an error.
 	 */
 	public function test_generate_token_for_admin() {
 		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$admin_id ) );
 		$this->assertTrue( is_wp_error( $token_data ) );
 		$this->assertEquals( 'newspack_magic_link_invalid_user', $token_data->get_error_code() );
+	}
+
+	/**
+	 * Test that generating a token for a user with disabled magic links returns
+	 * an error.
+	 */
+	public function test_generate_token_for_disabled_user() {
+		update_user_meta( self::$user_id, Magic_Link::DISABLE_META, true );
+		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
+		$this->assertTrue( is_wp_error( $token_data ) );
+		$this->assertEquals( 'newspack_magic_link_invalid_user', $token_data->get_error_code() );
+		delete_user_meta( self::$user_id, Magic_Link::DISABLE_META ); // Clean up.
 	}
 
 	/**
@@ -130,17 +142,5 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
 		$this->assertEmpty( $token_data['client'] );
-	}
-
-	/**
-	 * Test that generating a token for a user with disabled magic links returns
-	 * an error.
-	 */
-	public function test_generate_token_for_disabled_user() {
-		update_user_meta( self::$user_id, Magic_Link::DISABLE_META, true );
-		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
-		$this->assertTrue( is_wp_error( $token_data ) );
-		$this->assertEquals( 'newspack_magic_link_invalid_user', $token_data->get_error_code() );
-		delete_user_meta( self::$user_id, Magic_Link::DISABLE_META ); // Clean up.
 	}
 }
