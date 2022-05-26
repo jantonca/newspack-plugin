@@ -77,12 +77,12 @@ final class Magic_Link {
 		$can_magic_link = ! (bool) \get_user_meta( $user_id, self::DISABLE_META, true );
 
 		/**
-		 * Filters whether the user can use the magic link.
+		 * Filters whether the user can use magic links.
 		 *
-		 * @param bool $can_magic_link Whether the user can use the magic link.
-		 * @param int  $user_id        User ID.
+		 * @param bool     $can_magic_link Whether the user can use magic links.
+		 * @param \WP_User $user           User object.
 		 */
-		return \apply_filters( 'newspack_can_magic_link', $can_magic_link, $user_id );
+		return \apply_filters( 'newspack_can_magic_link', $can_magic_link, $user );
 	}
 
 	/**
@@ -210,7 +210,7 @@ final class Magic_Link {
 		/**
 		 * Fires after all user tokens are cleared.
 		 *
-		 * @param \WP_User $user User tokens were cleared for.
+		 * @param \WP_User $user User for which tokens were cleared.
 		 */
 		do_action( 'newspack_magic_link_user_tokens_cleared', $user );
 	}
@@ -653,13 +653,13 @@ final class Magic_Link {
 							$message = __( 'Magic link sent.', 'newspack' );
 							break;
 						case $actions['clear']:
-							$message = __( 'Magic link tokens cleared.', 'newspack' );
+							$message = __( 'All magic link tokens were removed.', 'newspack' );
 							break;
 						case $actions['disable']:
-							$message = __( 'Magic links were disabled.', 'newspack' );
+							$message = __( 'Magic links are now disabled.', 'newspack' );
 							break;
 						case $actions['enable']:
-							$message = __( 'Magic links were enabled.', 'newspack' );
+							$message = __( 'Magic links are now enabled.', 'newspack' );
 							break;
 					}
 					if ( ! empty( $message ) ) {
@@ -738,21 +738,21 @@ final class Magic_Link {
 		$disabled = (bool) \get_user_meta( $user->ID, self::DISABLE_META, true );
 		?>
 		<div class="newspack-magic-link-management">
-			<h2><?php _e( 'Magic link management', 'newspack' ); ?></h2>
+			<h2><?php _e( 'Magic Link Management', 'newspack' ); ?></h2>
 			<table class="form-table" role="presentation">
 				<tr id="newspack-magic-link-support">
-					<th><label><?php _e( 'Magic link support', 'newspack' ); ?></label></th>
+					<th><label><?php _e( 'Magic Link Support', 'newspack' ); ?></label></th>
 					<td>
 						<?php if ( $disabled ) : ?>
-							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'enable', $user->ID ) ); ?>"><?php _e( 'Enable magic links' ); ?></a>
+							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'enable', $user->ID ) ); ?>"><?php _e( 'Enable Magic Links' ); ?></a>
 						<?php else : ?>
-							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'disable', $user->ID ) ); ?>"><?php _e( 'Disable magic links' ); ?></a>
+							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'disable', $user->ID ) ); ?>"><?php _e( 'Disable Magic Links' ); ?></a>
 						<?php endif; ?>
 						<p class="description">
 								<?php
 								printf(
 									/* translators: %1$s: Disabled or enabled. %2$s: User's display name. */
-									esc_html__( 'Magic links are currently %1$s for %2$s.', 'newspack' ),
+									esc_html__( 'Magic link authentication is currently %1$s for %2$s.', 'newspack' ),
 									$disabled ? esc_html__( 'disabled', 'newspack' ) : esc_html__( 'enabled', 'newspack' ),
 									esc_html( $user->display_name )
 								);
@@ -762,14 +762,14 @@ final class Magic_Link {
 				</tr>
 				<?php if ( ! $disabled ) : ?>
 					<tr id="newspack-magic-link-send">
-						<th><label><?php _e( 'Send magic link', 'newspack' ); ?></label></th>
+						<th><label><?php _e( 'Send Magic Link', 'newspack' ); ?></label></th>
 						<td>
-							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'send', $user->ID ) ); ?>"><?php _e( 'Send magic link' ); ?></a>
+							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'send', $user->ID ) ); ?>"><?php _e( 'Send Magic Link' ); ?></a>
 							<p class="description">
 								<?php
 								printf(
 									/* translators: %1$s: User's display name. %2$d is the expiration period in minutes. */
-									esc_html__( 'Send %1$s a link that authenticates instantly. The link will be valid for %2$d minutes.', 'newspack' ),
+									esc_html__( 'Generate and send a new link to %1$s, which will authenticate them instantly. The link will be valid for %2$d minutes after its creation.', 'newspack' ),
 									esc_html( $user->display_name ),
 									esc_html( absint( self::get_token_expiration_period() ) / MINUTE_IN_SECONDS )
 								);
@@ -778,9 +778,9 @@ final class Magic_Link {
 						</td>
 					</tr>
 					<tr id="newspack-magic-link-clear">
-						<th><label><?php _e( 'Clear existing tokens', 'newspack' ); ?></label></th>
+						<th><label><?php _e( 'Clear All Tokens', 'newspack' ); ?></label></th>
 						<td>
-							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'clear', $user->ID ) ); ?>"><?php _e( 'Clear user tokens' ); ?></a>
+							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'clear', $user->ID ) ); ?>"><?php _e( 'Clear All Tokens' ); ?></a>
 							<p class="description">
 								<?php
 								printf(
