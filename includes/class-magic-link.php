@@ -626,7 +626,7 @@ final class Magic_Link {
 		}
 		if ( self::can_magic_link( $user->ID ) ) {
 			$url                                 = self::get_admin_action_url( 'send', $user->ID );
-			$actions['newspack-magic-link-send'] = '<a href="' . $url . '">' . esc_html__( 'Send magic link', 'newspack' ) . '</a>';
+			$actions['newspack-magic-link-send'] = '<a href="' . $url . '">' . \esc_html__( 'Send magic link', 'newspack' ) . '</a>';
 		}
 		return $actions;
 	}
@@ -744,17 +744,17 @@ final class Magic_Link {
 					<th><label><?php _e( 'Magic Link Support', 'newspack' ); ?></label></th>
 					<td>
 						<?php if ( $disabled ) : ?>
-							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'enable', $user->ID ) ); ?>"><?php _e( 'Enable Magic Links' ); ?></a>
+							<a class="button" href="<?php echo \esc_url( self::get_admin_action_url( 'enable', $user->ID ) ); ?>"><?php _e( 'Enable Magic Links' ); ?></a>
 						<?php else : ?>
-							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'disable', $user->ID ) ); ?>"><?php _e( 'Disable Magic Links' ); ?></a>
+							<a class="button" href="<?php echo \esc_url( self::get_admin_action_url( 'disable', $user->ID ) ); ?>"><?php _e( 'Disable Magic Links' ); ?></a>
 						<?php endif; ?>
 						<p class="description">
 								<?php
 								printf(
 									/* translators: %1$s: Disabled or enabled. %2$s: User's display name. */
-									esc_html__( 'Magic link authentication is currently %1$s for %2$s.', 'newspack' ),
-									$disabled ? esc_html__( 'disabled', 'newspack' ) : esc_html__( 'enabled', 'newspack' ),
-									esc_html( $user->display_name )
+									\esc_html__( 'Magic link authentication is currently %1$s for %2$s.', 'newspack' ),
+									$disabled ? \esc_html__( 'disabled', 'newspack' ) : \esc_html__( 'enabled', 'newspack' ),
+									\esc_html( $user->display_name )
 								);
 								?>
 							</p>
@@ -764,14 +764,14 @@ final class Magic_Link {
 					<tr id="newspack-magic-link-send">
 						<th><label><?php _e( 'Send Magic Link', 'newspack' ); ?></label></th>
 						<td>
-							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'send', $user->ID ) ); ?>"><?php _e( 'Send Magic Link' ); ?></a>
+							<a class="button" href="<?php echo \esc_url( self::get_admin_action_url( 'send', $user->ID ) ); ?>"><?php _e( 'Send Magic Link' ); ?></a>
 							<p class="description">
 								<?php
 								printf(
 									/* translators: %1$s: User's display name. %2$d is the expiration period in minutes. */
-									esc_html__( 'Generate and send a new link to %1$s, which will authenticate them instantly. The link will be valid for %2$d minutes after its creation.', 'newspack' ),
-									esc_html( $user->display_name ),
-									esc_html( absint( self::get_token_expiration_period() ) / MINUTE_IN_SECONDS )
+									\esc_html__( 'Generate and send a new link to %1$s, which will authenticate them instantly. The link will be valid for %2$d minutes after its creation.', 'newspack' ),
+									\esc_html( $user->display_name ),
+									\esc_html( \absint( self::get_token_expiration_period() ) / MINUTE_IN_SECONDS )
 								);
 								?>
 							</p>
@@ -780,13 +780,13 @@ final class Magic_Link {
 					<tr id="newspack-magic-link-clear">
 						<th><label><?php _e( 'Clear All Tokens', 'newspack' ); ?></label></th>
 						<td>
-							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'clear', $user->ID ) ); ?>"><?php _e( 'Clear All Tokens' ); ?></a>
+							<a class="button" href="<?php echo \esc_url( self::get_admin_action_url( 'clear', $user->ID ) ); ?>"><?php _e( 'Clear All Tokens' ); ?></a>
 							<p class="description">
 								<?php
 								printf(
 									/* translators: %s: User's display name. */
-									esc_html__( 'Clear all existing magic link tokens for %s.', 'newspack' ),
-									esc_html( $user->display_name )
+									\esc_html__( 'Clear all existing magic link tokens for %s.', 'newspack' ),
+									\esc_html( $user->display_name )
 								);
 								?>
 							</p>
