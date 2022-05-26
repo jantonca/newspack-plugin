@@ -14,7 +14,9 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Magic_Link {
 
-	const FORM_ACTION = 'np_magic_link';
+	const FORM_ACTION = 'np_auth_link';
+
+	const ADMIN_ACTION = 'np_send_magic_link';
 
 	const USER_META = 'np_magic_link_tokens';
 
@@ -32,6 +34,8 @@ final class Magic_Link {
 	 */
 	public static function init() {
 		\add_action( 'init', [ __CLASS__, 'wp_cli' ] );
+		\add_action( 'admin_init', [ __CLASS__, 'process_admin_send_email' ] );
+		\add_filter( 'user_row_actions', [ __CLASS__, 'user_row_actions' ], 10, 2 );
 		\add_action( 'clear_auth_cookie', [ __CLASS__, 'clear_cookie' ] );
 		\add_action( 'set_auth_cookie', [ __CLASS__, 'clear_cookie' ] );
 		\add_action( 'template_redirect', [ __CLASS__, 'process_token_request' ] );
@@ -65,7 +69,7 @@ final class Magic_Link {
 	}
 
 	/**
-	 * Get the session client secret for magic link hash validation.
+	 * Get locally stored secret to be used as part of the client hash.
 	 *
 	 * @param bool $reset Whether to generate a new secret.
 	 */
@@ -95,14 +99,21 @@ final class Magic_Link {
 	}
 
 	/**
-	 * Get the session client hash.
+	 * Get client hash for the current session.
 	 *
-	 * @param bool $reset_secret Whether to reset the stored client secret.
+	 * @param \WP_User $user         User the client hash is being generated for.
+	 * @param bool     $reset_secret Whether to reset the stored client secret.
 	 *
 	 * @return string|null Client hash or null if unable to generate one.
 	 */
-	private static function get_client_hash( $reset_secret = false ) {
+	private static function get_client_hash( $user, $reset_secret = false ) {
+		/** Don't return client hash from CLI command */
 		if ( defined( 'WP_CLI' ) ) {
+			return null;
+		}
+
+		/** Don't return client hash if it's for a different user. */
+		if ( \is_user_logged_in() && \get_current_user_id() !== $user->ID ) {
 			return null;
 		}
 
@@ -134,7 +145,7 @@ final class Magic_Link {
 		 */
 		$hash_args = \apply_filters( 'newspack_magic_link_client_hash_args', $hash_args );
 
-		return ! empty( $hash_args ) ? sha1( implode( '', $hash_args ) ) : null;
+		return ! empty( $hash_args ) ? \wp_hash( implode( '', $hash_args ) ) : null;
 	}
 
 	/**
@@ -174,8 +185,8 @@ final class Magic_Link {
 		}
 
 		/** Generate the new token. */
-		$token      = sha1( \wp_generate_password() );
-		$client     = self::get_client_hash( true );
+		$token      = \wp_hash( \wp_generate_password() );
+		$client     = self::get_client_hash( $user, true );
 		$token_data = [
 			'token'  => $token,
 			'client' => ! empty( $client ) ? $client : '',
@@ -381,7 +392,13 @@ final class Magic_Link {
 			return false;
 		}
 
-		$client     = self::get_client_hash();
+		$user = \get_user_by( 'id', $user_id );
+
+		if ( ! $user ) {
+			return new \WP_Error( 'invalid_user', __( 'User not found.', 'newspack' ) );
+		}
+
+		$client     = self::get_client_hash( $user );
 		$token_data = self::validate_token( $user_id, $client, $token );
 
 		if ( \is_wp_error( $token_data ) ) {
@@ -390,12 +407,6 @@ final class Magic_Link {
 
 		if ( empty( $token_data ) ) {
 			return false;
-		}
-
-		$user = \get_user_by( 'id', $user_id );
-
-		if ( ! $user ) {
-			return new \WP_Error( 'invalid_user', __( 'User not found.', 'newspack' ) );
 		}
 
 		Reader_Activation::set_reader_verified( $user );
@@ -502,6 +513,82 @@ final class Magic_Link {
 				'shortdesc' => __( 'Send a magic link to a reader.', 'newspack' ),
 			]
 		);
+	}
+
+	/**
+	 * Adds magic link send action to user row actions.
+	 *
+	 * @param string[] $actions User row actions.
+	 * @param \WP_User $user    User object.
+	 *
+	 * @return string[] User row actions.
+	 */
+	public static function user_row_actions( $actions, $user ) {
+		if ( ! Reader_Activation::is_enabled() ) {
+			return $actions;
+		}
+		$url = add_query_arg(
+			[
+				'action'   => self::ADMIN_ACTION,
+				'uid'      => $user->ID,
+				'_wpnonce' => \wp_create_nonce( self::ADMIN_ACTION ),
+			]
+		);
+		if ( Reader_Activation::is_user_reader( $user ) ) {
+			$actions['newspack-magic-link'] = '<a href="' . $url . '">' . __( 'Send magic link', 'newspack' ) . '</a>';
+		}
+		return $actions;
+	}
+
+	/**
+	 * Process sending magic link email admin request.
+	 */
+	public static function process_admin_send_email() {
+		/** Add notice if email was sent successfully. */
+		if ( isset( $_GET['update'] ) && self::ADMIN_ACTION === $_GET['update'] ) {
+			add_action(
+				'admin_notices',
+				function() {
+					?>
+					<div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Magic link sent.', 'newspack' ); ?></p></div>
+					<?php
+				}
+			);
+		}
+
+		if ( ! isset( $_GET['action'] ) || self::ADMIN_ACTION !== $_GET['action'] ) {
+			return;
+		}
+
+		if ( ! isset( $_GET['uid'] ) ) {
+			\wp_die( \esc_html__( 'Invalid request.', 'newspack' ) );
+		}
+
+		if ( ! \check_admin_referer( self::ADMIN_ACTION ) ) {
+			\wp_die( \esc_html__( 'Invalid request.', 'newspack' ) );
+		}
+
+		$user_id = \absint( \wp_unslash( $_GET['uid'] ) );
+
+		if ( ! \current_user_can( 'edit_user', $user_id ) ) {
+			\wp_die( \esc_html__( 'You do not have permission to do that.', 'newspack' ) );
+		}
+
+		$user = \get_user_by( 'id', $user_id );
+
+		if ( ! $user || \is_wp_error( $user ) ) {
+			\wp_die( \esc_html__( 'User not found.', 'newspack' ) );
+		}
+
+		$result = self::send_email( $user );
+
+		if ( \is_wp_error( $result ) ) {
+			\wp_die( $result ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
+
+		$redirect = \add_query_arg( [ 'update' => self::ADMIN_ACTION ], \remove_query_arg( [ 'action', 'uid', '_wpnonce' ] ) );
+		\wp_safe_redirect( $redirect );
+		exit;
 	}
 }
 Magic_Link::init();
