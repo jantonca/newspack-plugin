@@ -66,7 +66,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 * }
 	 */
 	public function assertToken( $token_data ) {
-		$this->assertFalse( is_wp_error( $second_validation ) );
+		$this->assertFalse( is_wp_error( $token_data ) );
 		$this->assertIsString( $token_data['token'] );
 		$this->assertIsString( $token_data['client'] );
 		$this->assertIsInt( $token_data['time'] );
