@@ -21,7 +21,7 @@ final class Magic_Link {
 		'enable'  => 'np_magic_link_enable',
 	];
 
-	const TOKENS_META  = 'np_magic_link_tokens';
+	const TOKENS_META   = 'np_magic_link_tokens';
 	const DISABLED_META = 'np_magic_link_disabled';
 
 	const AUTH_ACTION = 'np_auth_link';
