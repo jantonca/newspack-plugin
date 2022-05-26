@@ -22,7 +22,7 @@ final class Magic_Link {
 	];
 
 	const TOKENS_META  = 'np_magic_link_tokens';
-	const DISABLE_META = 'np_magic_link_disabled';
+	const DISABLED_META = 'np_magic_link_disabled';
 
 	const AUTH_ACTION = 'np_auth_link';
 	const COOKIE      = 'np_auth_link';
@@ -74,7 +74,7 @@ final class Magic_Link {
 			return false;
 		}
 
-		$can_magic_link = ! (bool) \get_user_meta( $user_id, self::DISABLE_META, true );
+		$can_magic_link = ! (bool) \get_user_meta( $user_id, self::DISABLED_META, true );
 
 		/**
 		 * Filters whether the user can use magic links.
@@ -588,12 +588,12 @@ final class Magic_Link {
 	}
 
 	/**
-	 * Get admin url for sending a magic link to a user.
+	 * Get url for an admin action.
 	 *
 	 * @param string $action  Which admin action get the URL for.
 	 * @param int    $user_id User to get the URL for.
 	 *
-	 * @return string Admin URL to send a magic link to user.
+	 * @return string Admin URL to perform an admin action.
 	 */
 	private static function get_admin_action_url( $action, $user_id ) {
 		if ( ! is_admin() ) {
@@ -709,10 +709,10 @@ final class Magic_Link {
 				break;
 			case $actions['disable']:
 				self::clear_user_tokens( $user );
-				\update_user_meta( $user_id, self::DISABLE_META, true );
+				\update_user_meta( $user_id, self::DISABLED_META, true );
 				break;
 			case $actions['enable']:
-				\delete_user_meta( $user_id, self::DISABLE_META );
+				\delete_user_meta( $user_id, self::DISABLED_META );
 				break;
 		}
 
@@ -735,7 +735,7 @@ final class Magic_Link {
 			return;
 		}
 
-		$disabled = (bool) \get_user_meta( $user->ID, self::DISABLE_META, true );
+		$disabled = (bool) \get_user_meta( $user->ID, self::DISABLED_META, true );
 		?>
 		<div class="newspack-magic-link-management">
 			<h2><?php _e( 'Magic Link Management', 'newspack' ); ?></h2>
