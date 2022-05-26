@@ -14,13 +14,13 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Magic_Link {
 
-	const FORM_ACTION = 'np_auth_link';
-
 	const ADMIN_ACTION = 'np_send_magic_link';
 
 	const USER_META = 'np_magic_link_tokens';
 
-	const COOKIE = 'np_magic_link';
+	const AUTH_ACTION = 'np_auth_link';
+
+	const COOKIE = 'np_auth_link';
 
 	/**
 	 * Current session secret.
@@ -33,12 +33,17 @@ final class Magic_Link {
 	 * Initialize hooks.
 	 */
 	public static function init() {
+
+		/** Authentication hooks */
+		\add_action( 'clear_auth_cookie', [ __CLASS__, 'clear_client_secret_cookie' ] );
+		\add_action( 'set_auth_cookie', [ __CLASS__, 'clear_client_secret_cookie' ] );
+		\add_action( 'template_redirect', [ __CLASS__, 'process_token_request' ] );
+
+		/** Admin functionality */
 		\add_action( 'init', [ __CLASS__, 'wp_cli' ] );
 		\add_action( 'admin_init', [ __CLASS__, 'process_admin_send_email' ] );
 		\add_filter( 'user_row_actions', [ __CLASS__, 'user_row_actions' ], 10, 2 );
-		\add_action( 'clear_auth_cookie', [ __CLASS__, 'clear_cookie' ] );
-		\add_action( 'set_auth_cookie', [ __CLASS__, 'clear_cookie' ] );
-		\add_action( 'template_redirect', [ __CLASS__, 'process_token_request' ] );
+
 	}
 
 	/**
@@ -56,11 +61,15 @@ final class Magic_Link {
 	}
 
 	/**
-	 * Clear magic link cookie.
+	 * Clear client secret cookie.
 	 */
-	public static function clear_cookie() {
+	public static function clear_client_secret_cookie() {
 		/** This filter is documented in wp-includes/pluggable.php */
 		if ( ! apply_filters( 'send_auth_cookies', true ) ) {
+			return;
+		}
+
+		if ( ! isset( $_COOKIE[ self::COOKIE ] ) ) {
 			return;
 		}
 
@@ -91,8 +100,11 @@ final class Magic_Link {
 
 		/** This filter is documented in wp-includes/pluggable.php */
 		if ( \apply_filters( 'send_auth_cookies', true ) ) {
+			/** Add an extra 5 minutes to the client secret cookie expiration. */
+			$expiration = time() + self::get_token_expiration_period() + ( 5 * MINUTE_IN_SECONDS );
+
 		  // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.cookies_setcookie
-			setcookie( self::COOKIE, $secret, time() + self::get_token_expiration_period(), COOKIEPATH, COOKIE_DOMAIN, true );
+			setcookie( self::COOKIE, $secret, $expiration, COOKIEPATH, COOKIE_DOMAIN, true );
 		}
 
 		return $secret;
@@ -112,7 +124,7 @@ final class Magic_Link {
 			return null;
 		}
 
-		/** Don't return client hash if it's for a different user. */
+		/** Don't return client hash if it's not self-served. */
 		if ( \is_user_logged_in() && \get_current_user_id() !== $user->ID ) {
 			return null;
 		}
@@ -207,12 +219,14 @@ final class Magic_Link {
 	 */
 	private static function generate_url( $user, $url = '' ) {
 		$token_data = self::generate_token( $user );
+
 		if ( \is_wp_error( $token_data ) ) {
 			return $token_data;
 		}
+
 		return \add_query_arg(
 			[
-				'action' => self::FORM_ACTION,
+				'action' => self::AUTH_ACTION,
 				'uid'    => $user->ID,
 				'token'  => $token_data['token'],
 			],
@@ -429,11 +443,13 @@ final class Magic_Link {
 		if ( ! Reader_Activation::is_enabled() ) {
 			return;
 		}
+
 		if ( \is_user_logged_in() ) {
 			return;
 		}
+
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
-		if ( ! isset( $_GET['action'] ) || self::FORM_ACTION !== $_GET['action'] ) {
+		if ( ! isset( $_GET['action'] ) || self::AUTH_ACTION !== $_GET['action'] ) {
 			return;
 		}
 		if ( ! isset( $_GET['token'] ) || ! isset( $_GET['uid'] ) ) {
