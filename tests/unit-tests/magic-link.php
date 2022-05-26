@@ -6,6 +6,7 @@
  */
 
 use Newspack\Magic_Link;
+use Newspack\Reader_Activation;
 
 /**
  * Tests the Magic Link functionality.
