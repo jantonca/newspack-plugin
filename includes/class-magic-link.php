@@ -384,7 +384,7 @@ final class Magic_Link {
 			if ( empty( $valid_token ) ) {
 				$errors->add( 'expired_token', __( 'Token has expired.', 'newspack' ) );
 			}
-			self::clear_cookie();
+			self::clear_client_secret_cookie();
 
 			$tokens = array_values( $tokens );
 			\update_user_meta( $user->ID, self::USER_META, $tokens );
