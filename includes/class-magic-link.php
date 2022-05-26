@@ -632,7 +632,7 @@ final class Magic_Link {
 	}
 
 	/**
-	 * Process sending magic link email admin request.
+	 * Process admin action request.
 	 */
 	public static function process_admin_action() {
 		if ( ! Reader_Activation::is_enabled() ) {
