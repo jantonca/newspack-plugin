@@ -101,7 +101,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 		// Second use should error with "invalid_token", since it was deleted by previous use.
 		$second_validation = Magic_Link::validate_token( self::$user_id, $token_data['client'], $token_data['token'] );
 		$this->assertTrue( is_wp_error( $second_validation ) );
-		$this->assertEquals( 'invalid_token', $token_data->get_error_code() );
+		$this->assertEquals( 'invalid_token', $second_validation->get_error_code() );
 	}
 
 	/**
