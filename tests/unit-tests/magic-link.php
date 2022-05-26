@@ -38,7 +38,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 
 		// Create sample reader.
 		if ( empty( self::$user_id ) ) {
-			self::$user_id = Reader_Activation::register_reader( self::$reader_email, self::$reader_name );
+			self::$user_id = Reader_Activation::register_reader( 'reader@test.com', 'Test Reader' );
 		}
 
 		// Create sample admin.
