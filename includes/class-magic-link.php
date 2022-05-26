@@ -14,13 +14,18 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Magic_Link {
 
-	const ADMIN_ACTION = 'np_send_magic_link';
+	const ADMIN_ACTIONS = [
+		'send'    => 'np_magic_link_send',
+		'clear'   => 'np_magic_link_clear',
+		'disable' => 'np_magic_link_disable',
+		'enable'  => 'np_magic_link_enable',
+	];
 
-	const USER_META = 'np_magic_link_tokens';
+	const TOKENS_META  = 'np_magic_link_tokens';
+	const DISABLE_META = 'np_magic_link_disabled';
 
 	const AUTH_ACTION = 'np_auth_link';
-
-	const COOKIE = 'np_auth_link';
+	const COOKIE      = 'np_auth_link';
 
 	/**
 	 * Current session secret.
@@ -41,9 +46,43 @@ final class Magic_Link {
 
 		/** Admin functionality */
 		\add_action( 'init', [ __CLASS__, 'wp_cli' ] );
-		\add_action( 'admin_init', [ __CLASS__, 'process_admin_send_email' ] );
+		\add_action( 'admin_init', [ __CLASS__, 'process_admin_action' ] );
 		\add_filter( 'user_row_actions', [ __CLASS__, 'user_row_actions' ], 10, 2 );
+		\add_action( 'edit_user_profile', [ __CLASS__, 'edit_user_profile' ] );
 
+	}
+
+	/**
+	 * Whether a user can use magic links.
+	 *
+	 * @param int $user_id User ID.
+	 *
+	 * @return bool Whether the user can use magic links.
+	 */
+	public static function can_magic_link( $user_id ) {
+		if ( ! Reader_Activation::is_enabled() ) {
+			return false;
+		}
+
+		$user = \get_user_by( 'id', $user_id );
+
+		if ( ! $user || \is_wp_error( $user ) ) {
+			return false;
+		}
+
+		if ( ! Reader_Activation::is_user_reader( $user ) ) {
+			return false;
+		}
+
+		$can_magic_link = ! (bool) \get_user_meta( $user_id, self::DISABLE_META, true );
+
+		/**
+		 * Filters whether the user can use the magic link.
+		 *
+		 * @param bool $can_magic_link Whether the user can use the magic link.
+		 * @param int  $user_id        User ID.
+		 */
+		return \apply_filters( 'newspack_can_magic_link', $can_magic_link, $user_id );
 	}
 
 	/**
@@ -161,6 +200,22 @@ final class Magic_Link {
 	}
 
 	/**
+	 * Clear all user tokens.
+	 *
+	 * @param \WP_User $user User to clear tokens for.
+	 */
+	public static function clear_user_tokens( $user ) {
+		\delete_user_meta( $user->ID, self::TOKENS_META );
+
+		/**
+		 * Fires after all user tokens are cleared.
+		 *
+		 * @param \WP_User $user User tokens were cleared for.
+		 */
+		do_action( 'newspack_magic_link_user_tokens_cleared', $user );
+	}
+	
+	/**
 	 * Generate magic link token.
 	 *
 	 * @param \WP_User $user User to generate the magic link token for.
@@ -174,11 +229,12 @@ final class Magic_Link {
 	 * }
 	 */
 	public static function generate_token( $user ) {
-		if ( ! Reader_Activation::is_user_reader( $user ) ) {
-			return new \WP_Error( 'newspack_magic_link_invalid_user', __( 'User is not a reader.', 'newspack' ) );
+		if ( ! self::can_magic_link( $user->ID ) ) {
+			return new \WP_Error( 'newspack_magic_link_invalid_user', __( 'Invalid user.', 'newspack' ) );
 		}
+
 		$now    = time();
-		$tokens = \get_user_meta( $user->ID, self::USER_META, true );
+		$tokens = \get_user_meta( $user->ID, self::TOKENS_META, true );
 		if ( empty( $tokens ) ) {
 			$tokens = [];
 		}
@@ -205,7 +261,7 @@ final class Magic_Link {
 			'time'   => $now,
 		];
 		$tokens[]   = $token_data;
-		\update_user_meta( $user->ID, self::USER_META, $tokens );
+		\update_user_meta( $user->ID, self::TOKENS_META, $tokens );
 		return $token_data;
 	}
 
@@ -250,8 +306,8 @@ final class Magic_Link {
 	 * }
 	 */
 	public static function generate_email( $user, $redirect_to = '' ) {
-		if ( ! Reader_Activation::is_user_reader( $user ) ) {
-			return new \WP_Error( 'newspack_magic_link_invalid_user', __( 'User is not a reader.', 'newspack' ) );
+		if ( ! self::can_magic_link( $user->ID ) ) {
+			return new \WP_Error( 'newspack_magic_link_invalid_user', __( 'Invalid user.', 'newspack' ) );
 		}
 
 		$magic_link_url = self::generate_url( $user, $redirect_to );
@@ -350,10 +406,10 @@ final class Magic_Link {
 
 		if ( ! $user ) {
 			$errors->add( 'invalid_user', __( 'User not found.', 'newspack' ) );
-		} elseif ( ! Reader_Activation::is_user_reader( $user ) ) {
+		} elseif ( ! self::can_magic_link( $user->ID ) ) {
 			$errors->add( 'invalid_user_type', __( 'Not allowed for this user', 'newspack' ) );
 		} else {
-			$tokens = \get_user_meta( $user->ID, self::USER_META, true );
+			$tokens = \get_user_meta( $user->ID, self::TOKENS_META, true );
 			if ( empty( $tokens ) || empty( $token ) ) {
 				$errors->add( 'invalid_token', __( 'Invalid token.', 'newspack' ) );
 			}
@@ -387,7 +443,7 @@ final class Magic_Link {
 			self::clear_client_secret_cookie();
 
 			$tokens = array_values( $tokens );
-			\update_user_meta( $user->ID, self::USER_META, $tokens );
+			\update_user_meta( $user->ID, self::TOKENS_META, $tokens );
 		}
 
 		return $errors->has_errors() ? $errors : $valid_token;
@@ -532,6 +588,31 @@ final class Magic_Link {
 	}
 
 	/**
+	 * Get admin url for sending a magic link to a user.
+	 *
+	 * @param string $action  Which admin action get the URL for.
+	 * @param int    $user_id User to get the URL for.
+	 *
+	 * @return string Admin URL to send a magic link to user.
+	 */
+	private static function get_admin_action_url( $action, $user_id ) {
+		if ( ! is_admin() ) {
+			return '';
+		}
+		if ( ! isset( self::ADMIN_ACTIONS[ $action ] ) ) {
+			return '';
+		}
+		$admin_action = self::ADMIN_ACTIONS[ $action ];
+		return add_query_arg(
+			[
+				'action'   => $admin_action,
+				'uid'      => $user_id,
+				'_wpnonce' => \wp_create_nonce( $admin_action ),
+			]
+		);
+	}
+
+	/**
 	 * Adds magic link send action to user row actions.
 	 *
 	 * @param string[] $actions User row actions.
@@ -543,13 +624,7 @@ final class Magic_Link {
 		if ( ! Reader_Activation::is_enabled() ) {
 			return $actions;
 		}
-		$url = add_query_arg(
-			[
-				'action'   => self::ADMIN_ACTION,
-				'uid'      => $user->ID,
-				'_wpnonce' => \wp_create_nonce( self::ADMIN_ACTION ),
-			]
-		);
+		$url = self::get_admin_action_url( 'send', $user->ID );
 		if ( Reader_Activation::is_user_reader( $user ) ) {
 			$actions['newspack-magic-link'] = '<a href="' . $url . '">' . __( 'Send magic link', 'newspack' ) . '</a>';
 		}
@@ -559,28 +634,54 @@ final class Magic_Link {
 	/**
 	 * Process sending magic link email admin request.
 	 */
-	public static function process_admin_send_email() {
-		/** Add notice if email was sent successfully. */
-		if ( isset( $_GET['update'] ) && self::ADMIN_ACTION === $_GET['update'] ) {
-			add_action(
+	public static function process_admin_action() {
+		if ( ! Reader_Activation::is_enabled() ) {
+			return;
+		}
+
+		$actions = self::ADMIN_ACTIONS;
+
+		/** Add notice if admin action was successful. */
+		if ( isset( $_GET['update'] ) && in_array( $_GET['update'], $actions, true ) ) {
+			$update = \sanitize_text_field( \wp_unslash( $_GET['update'] ) );
+			\add_action(
 				'admin_notices',
-				function() {
-					?>
-					<div id="message" class="updated notice is-dismissible"><p><?php esc_html_e( 'Magic link sent.', 'newspack' ); ?></p></div>
-					<?php
+				function() use ( $actions, $update ) {
+					$message = '';
+					switch ( $update ) {
+						case $actions['send']:
+							$message = __( 'Magic link sent.', 'newspack' );
+							break;
+						case $actions['clear']:
+							$message = __( 'Magic link tokens cleared.', 'newspack' );
+							break;
+						case $actions['disable']:
+							$message = __( 'Magic links were disabled.', 'newspack' );
+							break;
+						case $actions['enable']:
+							$message = __( 'Magic links were enabled.', 'newspack' );
+							break;
+					}
+					if ( ! empty( $message ) ) {
+						?>
+						<div id="message" class="updated notice is-dismissible"><p><?php echo \esc_html( $message ); ?></p></div>
+						<?php
+					}
 				}
 			);
 		}
 
-		if ( ! isset( $_GET['action'] ) || self::ADMIN_ACTION !== $_GET['action'] ) {
+		if ( ! isset( $_GET['action'] ) || ! in_array( $_GET['action'], $actions, true ) ) {
 			return;
 		}
+
+		$action = \sanitize_text_field( \wp_unslash( $_GET['action'] ) );
 
 		if ( ! isset( $_GET['uid'] ) ) {
 			\wp_die( \esc_html__( 'Invalid request.', 'newspack' ) );
 		}
 
-		if ( ! \check_admin_referer( self::ADMIN_ACTION ) ) {
+		if ( ! \check_admin_referer( $action ) ) {
 			\wp_die( \esc_html__( 'Invalid request.', 'newspack' ) );
 		}
 
@@ -596,15 +697,105 @@ final class Magic_Link {
 			\wp_die( \esc_html__( 'User not found.', 'newspack' ) );
 		}
 
-		$result = self::send_email( $user );
-
-		if ( \is_wp_error( $result ) ) {
-			\wp_die( $result ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		switch ( $action ) {
+			case $actions['send']:
+				$result = self::send_email( $user );
+				if ( \is_wp_error( $result ) ) {
+					\wp_die( $result ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
+				break;
+			case $actions['clear']:
+				self::clear_user_tokens( $user );
+				break;
+			case $actions['disable']:
+				self::clear_user_tokens( $user );
+				\update_user_meta( $user_id, self::DISABLE_META, true );
+				break;
+			case $actions['enable']:
+				\delete_user_meta( $user_id, self::DISABLE_META );
+				break;
 		}
 
-		$redirect = \add_query_arg( [ 'update' => self::ADMIN_ACTION ], \remove_query_arg( [ 'action', 'uid', '_wpnonce' ] ) );
+		$redirect = \add_query_arg( [ 'update' => $action ], \remove_query_arg( [ 'action', 'uid', '_wpnonce' ] ) );
 		\wp_safe_redirect( $redirect );
 		exit;
+	}
+
+	/**
+	 * Magic link management edit user.
+	 * 
+	 * @param WP_User $user The current WP_User object.
+	 */
+	public static function edit_user_profile( $user ) {
+		if ( ! Reader_Activation::is_enabled() ) {
+			return;
+		}
+
+		if ( ! Reader_Activation::is_user_reader( $user ) ) {
+			return;
+		}
+
+		$disabled = (bool) \get_user_meta( $user->ID, self::DISABLE_META, true );
+		?>
+		<div class="newspack-magic-link-management">
+			<h2><?php _e( 'Magic link management', 'newspack' ); ?></h2>
+			<table class="form-table" role="presentation">
+				<tr id="newspack-magic-link-support">
+					<th><label><?php _e( 'Magic link support', 'newspack' ); ?></label></th>
+					<td>
+						<?php if ( $disabled ) : ?>
+							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'enable', $user->ID ) ); ?>"><?php _e( 'Enable magic links' ); ?></a>
+						<?php else : ?>
+							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'disable', $user->ID ) ); ?>"><?php _e( 'Disable magic links' ); ?></a>
+						<?php endif; ?>
+						<p class="description">
+								<?php
+								printf(
+									/* translators: %1$s: Disabled or enabled. %2$s: User's display name. */
+									esc_html__( 'Magic links are currently %1$s for %2$s.', 'newspack' ),
+									$disabled ? esc_html__( 'disabled', 'newspack' ) : esc_html__( 'enabled', 'newspack' ),
+									esc_html( $user->display_name )
+								);
+								?>
+							</p>
+					</td>
+				</tr>
+				<?php if ( ! $disabled ) : ?>
+					<tr id="newspack-magic-link-send">
+						<th><label><?php _e( 'Send magic link', 'newspack' ); ?></label></th>
+						<td>
+							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'send', $user->ID ) ); ?>"><?php _e( 'Send magic link' ); ?></a>
+							<p class="description">
+								<?php
+								printf(
+									/* translators: %1$s: User's display name. %2$d is the expiration period in minutes. */
+									esc_html__( 'Send %1$s a link that authenticates instantly. The link will be valid for %2$d minutes.', 'newspack' ),
+									esc_html( $user->display_name ),
+									esc_html( absint( self::get_token_expiration_period() ) / MINUTE_IN_SECONDS )
+								);
+								?>
+							</p>
+						</td>
+					</tr>
+					<tr id="newspack-magic-link-clear">
+						<th><label><?php _e( 'Clear existing tokens', 'newspack' ); ?></label></th>
+						<td>
+							<a class="button" href="<?php echo esc_url( self::get_admin_action_url( 'clear', $user->ID ) ); ?>"><?php _e( 'Clear user tokens' ); ?></a>
+							<p class="description">
+								<?php
+								printf(
+									/* translators: %s: User's display name. */
+									esc_html__( 'Clear all existing magic link tokens for %s.', 'newspack' ),
+									esc_html( $user->display_name )
+								);
+								?>
+							</p>
+						</td>
+					</tr>
+				<?php endif; ?>
+			</table>
+		</div>
+		<?php
 	}
 }
 Magic_Link::init();

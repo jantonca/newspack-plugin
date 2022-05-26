@@ -131,4 +131,16 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
 		$this->assertEmpty( $token_data['client'] );
 	}
+
+	/**
+	 * Test that generating a token for a user with disabled magic links returns
+	 * an error.
+	 */
+	public function test_generate_token_for_disabled_user() {
+		update_user_meta( self::$user_id, Magic_Link::DISABLE_META, true );
+		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
+		$this->assertTrue( is_wp_error( $token_data ) );
+		$this->assertEquals( 'newspack_magic_link_invalid_user', $token_data->get_error_code() );
+		delete_user_meta( self::$user_id, Magic_Link::DISABLE_META ); // Clean up.
+	}
 }
