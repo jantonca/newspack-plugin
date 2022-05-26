@@ -33,9 +33,6 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 		// Enable reader activation.
 		add_filter( 'newspack_reader_activation_enabled', '__return_true' );
 
-		// Disable magic link cookie for the tests.
-		add_filter( 'newspack_magic_link_use_cookie', '__return_false' );
-
 		// Create sample reader.
 		if ( empty( self::$user_id ) ) {
 			self::$user_id = Reader_Activation::register_reader( 'reader@test.com', 'Test Reader' );
