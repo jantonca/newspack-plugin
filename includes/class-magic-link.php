@@ -625,7 +625,7 @@ final class Magic_Link {
 			return $actions;
 		}
 		$url = self::get_admin_action_url( 'send', $user->ID );
-		if ( Reader_Activation::is_user_reader( $user ) ) {
+		if ( self::can_magic_link( $user->ID ) ) {
 			$actions['newspack-magic-link'] = '<a href="' . $url . '">' . __( 'Send magic link', 'newspack' ) . '</a>';
 		}
 		return $actions;
