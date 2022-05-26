@@ -75,7 +75,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 * Test token generation.
 	 */
 	public function test_generate_token() {
-		$token_data = Magic_Link::generate_token( self::$user_id );
+		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
 		$this->assertToken( $token_data );
 	}
 
@@ -83,7 +83,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 * Test token validation.
 	 */
 	public function test_validate_token() {
-		$token_data = Magic_Link::generate_token( self::$user_id );
+		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
 		$this->assertToken( Magic_Link::validate_token( self::$user_id, $token_data['token'], $token_data['client'] ) );
 	}
 
@@ -91,7 +91,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 * Test single-use aspect of a token.
 	 */
 	public function test_single_use_token() {
-		$token_data = Magic_Link::generate_token( self::$user_id );
+		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
 
 		// First use should be valid.
 		$first_validation = Magic_Link::validate_token( self::$user_id, $token_data['token'], $token_data['client'] );
@@ -107,7 +107,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 * Test error when attempting to generate for admin user.
 	 */
 	public function test_generate_token_for_admin() {
-		$token_data = Magic_Link::generate_token( $admin_id );
+		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$admin_id ) );
 		$this->assertTrue( is_wp_error( $token_data ) );
 		$this->assertEquals( 'newspack_magic_link_invalid_user', $token_data->get_error_code() );
 	}
@@ -117,7 +117,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 * hash for validation.
 	 */
 	public function test_generate_self_served_token() {
-		$token_data = Magic_Link::generate_token( self::$user_id, true );
+		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
 		$this->assertNotEmpty( $token_data['client'] );
 	}
 
@@ -127,7 +127,7 @@ class Newspack_Test_Magic_Link extends WP_UnitTestCase {
 	 */
 	public function test_generate_admin_token() {
 		wp_set_current_user( self::$admin_id );
-		$token_data = Magic_Link::generate_token( self::$user_id, true );
+		$token_data = Magic_Link::generate_token( get_user_by( 'id', self::$user_id ) );
 		$this->assertEmpty( $token_data['client'] );
 	}
 }
